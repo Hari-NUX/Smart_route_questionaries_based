@@ -1,0 +1,76 @@
+import mongoose from 'mongoose'
+
+export const placementDomains = [
+  'CSE',
+  'Data Structures',
+  'Algorithms',
+  'DSA',
+  'OOP',
+  'Java',
+  'Python',
+  'C',
+  'C++',
+  'JavaScript',
+  'TypeScript',
+  'React',
+  'Node.js',
+  'Express.js',
+  'HTML & CSS',
+  'Full-Stack Development',
+  'REST APIs',
+  'DBMS',
+  'SQL',
+  'Operating Systems',
+  'Computer Networks',
+  'Computer Architecture',
+  'Software Engineering',
+  'System Design',
+  'Cybersecurity',
+  'Cloud Computing',
+  'DevOps',
+  'Git & Version Control',
+  'Testing & QA',
+  'AI',
+  'Machine Learning',
+  'Data Science',
+  'Generative AI',
+  'Prompt Engineering',
+  'Blockchain',
+]
+
+const questionSchema = new mongoose.Schema(
+  {
+    question: { type: String, required: true },
+    options: { type: [String], required: true, validate: (items) => items.length === 4 },
+    correctOptionIndex: { type: Number, required: true, min: 0, max: 3 },
+    explanation: { type: String, required: true },
+    domain: { type: String, enum: placementDomains, required: true },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], required: true },
+  },
+  { _id: false },
+)
+
+const placementSchema = new mongoose.Schema(
+  {
+    companyName: { type: String, required: true, trim: true, maxlength: 100 },
+    title: { type: String, required: true, trim: true, maxlength: 120 },
+    description: { type: String, required: true, trim: true, maxlength: 3000 },
+    location: { type: String, required: true, trim: true, maxlength: 120 },
+    domainMode: { type: String, enum: ['specific', 'random'], required: true },
+    domains: [{ type: String, enum: placementDomains }],
+    registrationOpensAt: { type: Date, required: true },
+    registrationDeadline: { type: Date, required: true },
+    registrationLimit: { type: Number, required: true, min: 1, max: 1000 },
+    registrationCount: { type: Number, required: true, min: 0, default: 0 },
+    questionCount: { type: Number, required: true, min: 1, max: 50 },
+    questionPoolSize: { type: Number, required: true, min: 3, max: 150 },
+    difficulty: { type: String, enum: ['easy', 'medium', 'hard'], required: true },
+    randomnessPercent: { type: Number, required: true, min: 0, max: 100 },
+    questionBank: { type: [questionSchema], required: true, select: false },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    status: { type: String, enum: ['published'], default: 'published', required: true },
+  },
+  { timestamps: true },
+)
+
+export default mongoose.model('Placement', placementSchema)

@@ -1,122 +1,40 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import AuthPanel from './components/AuthPanel.jsx'
+import CandidateDashboard from './components/CandidateDashboard.jsx'
+import HostDashboard from './components/HostDashboard.jsx'
+import { getCurrentUser, logout } from './services/authApi.js'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [theme, setTheme] = useState(() => localStorage.getItem('smartrouteTheme') || 'dark')
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('smartrouteTheme', theme)
+  }, [theme])
 
-      <div className="ticks"></div>
+  function toggleTheme() {
+    setTheme((current) => current === 'dark' ? 'light' : 'dark')
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  useEffect(() => {
+    getCurrentUser().then(setUser).finally(() => setLoading(false))
+  }, [])
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  if (loading) {
+    return <main className="grid min-h-screen place-items-center text-sm text-slate-500">Loading SmartRoute...</main>
+  }
+
+  if (!user) {
+    return <AuthPanel onAuthenticated={setUser} onThemeToggle={toggleTheme} theme={theme} />
+  }
+
+  if (user.role === 'admin') {
+    return <HostDashboard onSignOut={() => { logout(); setUser(null) }} onThemeToggle={toggleTheme} theme={theme} user={user} />
+  }
+
+  return <CandidateDashboard onSignOut={() => { logout(); setUser(null) }} onThemeToggle={toggleTheme} theme={theme} user={user} />
 }
 
 export default App
