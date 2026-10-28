@@ -38,6 +38,7 @@ function initialForm() {
 
 function PlacementForm({ onCreated }) {
   const [form, setForm] = useState(initialForm)
+  const [domainSearch, setDomainSearch] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
@@ -100,8 +101,8 @@ function PlacementForm({ onCreated }) {
 
         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Location<input className={fieldClass} maxLength={120} name="location" onChange={update} placeholder="e.g. Bengaluru · Hybrid" required value={form.location} /></label>
 
-        <fieldset>
-          <legend className="text-sm font-semibold text-slate-700 dark:text-slate-200">Question domains</legend>
+        <fieldset className="min-w-0">
+          <legend className="text-sm font-semibold text-slate-700 dark:text-slate-200">Question domains <span className="ml-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300">{form.domainMode === 'random' ? 'Random' : `${form.domains.length} selected`}</span></legend>
           <div className="mt-3 flex flex-wrap gap-2">
             {['specific', 'random'].map((mode) => (
               <button className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${form.domainMode === mode ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 text-slate-600 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-300'}`} key={mode} onClick={() => setForm((current) => ({ ...current, domainMode: mode, domains: mode === 'random' ? [] : current.domains }))} type="button">
@@ -109,8 +110,13 @@ function PlacementForm({ onCreated }) {
               </button>
             ))}
           </div>
-          {form.domainMode === 'specific' && <div className="mt-4 grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
-            {domains.map((domain) => <label className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition ${form.domains.includes(domain) ? 'border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`} key={domain}><input checked={form.domains.includes(domain)} className="accent-indigo-600" onChange={() => toggleDomain(domain)} type="checkbox" />{domain}</label>)}
+          {form.domainMode === 'specific' && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-950/50 sm:p-4">
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400" htmlFor="domain-search">Find a domain</label>
+            <input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-indigo-950" id="domain-search" onChange={(event) => setDomainSearch(event.target.value)} placeholder="Search 35 CSE domains" value={domainSearch} />
+            <div className="domain-picker-scroll mt-3 grid max-h-[min(22rem,45vh)] min-h-40 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-2 min-[430px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {domains.filter((domain) => domain.toLowerCase().includes(domainSearch.trim().toLowerCase())).map((domain) => <label className={`flex min-h-12 min-w-0 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${form.domains.includes(domain) ? 'border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-indigo-700'}`} key={domain}><input checked={form.domains.includes(domain)} className="shrink-0 accent-indigo-600" onChange={() => toggleDomain(domain)} type="checkbox" /><span className="min-w-0 break-words">{domain}</span></label>)}
+              {domains.every((domain) => !domain.toLowerCase().includes(domainSearch.trim().toLowerCase())) && <p className="col-span-full py-3 text-sm text-slate-500 dark:text-slate-400">No matching CSE domains.</p>}
+            </div>
           </div>}
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Random mode chooses from the supported CSE domains during question generation.</p>
         </fieldset>

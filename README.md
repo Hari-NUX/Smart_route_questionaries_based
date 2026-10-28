@@ -39,6 +39,19 @@ For local MongoDB with Docker Desktop, start Docker Desktop and run:
 docker compose up -d mongodb
 ```
 
+The repository currently uses Docker Compose only for the database. `docker-compose.yml` tells Docker to start the official MongoDB image, publish MongoDB on port `27017`, and mount a named volume so database files survive container restarts. The React frontend and Express backend run on the host with pnpm or npm. There are no application `Dockerfile`s in this setup.
+
+Useful database commands:
+
+```powershell
+docker compose ps
+docker compose logs -f mongodb
+docker compose stop mongodb
+docker compose down
+```
+
+The named volume is kept by `docker compose down`; `docker compose down -v` removes it and permanently deletes the local MongoDB data.
+
 Create the frontend environment file if you need a different API URL:
 
 ```powershell
@@ -90,19 +103,26 @@ The frontend runs at `http://localhost:5173`; the API runs at `http://localhost:
 | GET | `/api/auth/me` | Return the signed-in account; requires a bearer token |
 | POST | `/api/placements` | Generate a question bank and publish a placement; host role and bearer token required |
 | GET | `/api/placements/mine` | List placements created by the signed-in host |
+| GET | `/api/placements/:placementId/applicants?order=highest` | List the host's registered candidates and scores; use `order=lowest` to reverse score ordering |
 | GET | `/api/placements` | Search published placements; supports `search` and `sort=deadline` |
 | POST | `/api/placements/:placementId/register` | Register a candidate while the window is open and capacity remains |
 | GET | `/api/applications/mine` | List the signed-in candidate's applications |
 | POST | `/api/applications/:applicationId/start` | Start or resume an adaptive quiz |
 | POST | `/api/applications/:applicationId/answer` | Score an answer and receive the next question immediately |
 
-New accounts use the `users` collection and have either the `candidate` or `admin` role. Passwords are hashed before storage. The frontend stores the issued JWT in local storage for this prototype. Placements are stored separately and linked to the host who created them.
+New accounts use the `users` collection and have either the `candidate` or `admin` role. Passwords are hashed before storage. The frontend stores each issued JWT in that browser tab's session storage, so separate tabs can use separate accounts and each tab keeps its login through refreshes. The selected light/dark theme is stored in local storage and shared across tabs. Placements are stored separately and linked to the host who created them.
 
 Hosts can configure the registration window, registration capacity, supported CSE domains, quiz length from 1 to 50, starting difficulty, and difficulty randomness. Placement creation asks Gemini for three questions per quiz slot, balanced across easy, medium, and hard, then stores the bank with the placement. The quiz session starts at the selected difficulty. A correct answer raises the next target difficulty in that domain; a wrong answer lowers it. The randomness setting can skip an additional difficulty level.
 
 Gemini is called while the host publishes, not after candidate answers. Candidate answer requests only read the stored bank, score the answer on the server, update the application, and return the next pre-generated question. This keeps answer-to-next-question latency independent of Gemini response time. The answer key stays in the placement's private question bank and is not returned to placement or application list endpoints.
 
-Set `GEMINI_MODEL` to change the model; the default is `gemini-3.8-flash`. Gemini access, free-tier eligibility, and request limits depend on the Google AI project and selected model. Each placement creation makes one generation request.
+Set `GEMINI_MODEL` to change the primary model; the default is `gemini-3.8-flash`. Gemini access, free-tier eligibility, and request limits depend on the Google AI project and selected model. If the primary model is temporarily unavailable, the backend tries the alternate Flash model once.
+
+## Responsiveness and scale
+
+The interface uses responsive layouts that collapse to one column on narrow screens and expand on tablets and desktops. Domain selection uses a filterable list that grows with the page instead of a nested scroll box. The backend limits public placement results to 100 and enforces registration capacity with an atomic database update. Question banks are generated once at publication and reused for quiz responses.
+
+This is a classroom prototype, not a load-tested production deployment. It does not yet include pagination, multiple API instances, centralized session management, or load testing. Docker improves local environment consistency and data persistence here; it does not automatically make the app faster.
 
 ## Project layout
 
@@ -117,4 +137,4 @@ frontend/src/components    Reusable React components
 frontend/src/services      API client functions
 ```
 
-The next planned features are candidate placement discovery and registration, adaptive quiz sessions, and the host applicant dashboard.
+The current app includes candidate placement discovery and registration, adaptive quiz sessions, and the host applicant and score dashboard.
