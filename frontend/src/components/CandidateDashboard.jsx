@@ -17,7 +17,8 @@ function CandidateDashboard({ user, theme, onThemeToggle, onSignOut }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState('recent')
   const [tab, setTab] = useState('browse')
-  const [loading, setLoading] = useState(true)
+  const [placementsLoading, setPlacementsLoading] = useState(true)
+  const [applicationsLoading, setApplicationsLoading] = useState(true)
   const [error, setError] = useState('')
   const [busyPlacement, setBusyPlacement] = useState('')
   const [quizApplication, setQuizApplication] = useState(null)
@@ -38,7 +39,7 @@ function CandidateDashboard({ user, theme, onThemeToggle, onSignOut }) {
     getCandidateApplications()
       .then(setApplications)
       .catch((requestError) => setError(requestError.message))
-      .finally(() => setLoading(false))
+      .finally(() => setApplicationsLoading(false))
   }, [])
 
   useEffect(() => {
@@ -52,7 +53,7 @@ function CandidateDashboard({ user, theme, onThemeToggle, onSignOut }) {
           if (searchRequest.current === requestNumber) setError(requestError.message)
         })
         .finally(() => {
-          if (searchRequest.current === requestNumber) setLoading(false)
+          if (searchRequest.current === requestNumber) setPlacementsLoading(false)
         })
     }, 200)
 
@@ -160,11 +161,11 @@ function CandidateDashboard({ user, theme, onThemeToggle, onSignOut }) {
         {tab === 'browse' && <>
           <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_220px]">
             <label className="sr-only" htmlFor="placement-search">Search placements</label>
-            <input className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-indigo-950" id="placement-search" onChange={(event) => setSearch(event.target.value)} placeholder="Search by company, role, or description" value={search} />
-            <select aria-label="Sort placements" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200" onChange={(event) => setSort(event.target.value)} value={sort}><option value="recent">Recently posted</option><option value="deadline">Deadline soonest</option></select>
+            <input className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:ring-indigo-950" id="placement-search" onChange={(event) => { setError(''); setPlacementsLoading(true); setSearch(event.target.value) }} placeholder="Search by company, role, or description" value={search} />
+            <select aria-label="Sort placements" className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200" onChange={(event) => { setPlacementsLoading(true); setSort(event.target.value) }} value={sort}><option value="recent">Recently posted</option><option value="deadline">Deadline soonest</option></select>
           </div>
-          {loading && <p className="py-8 text-sm text-slate-500 dark:text-slate-400">Loading placements...</p>}
-          {!loading && placements.length === 0 && <div className="rounded-3xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700"><p className="font-semibold text-slate-800 dark:text-slate-200">No open placements found</p><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Try another search or check again when new roles are published.</p></div>}
+          {placementsLoading && <p className="py-8 text-sm text-slate-500 dark:text-slate-400">Loading placements...</p>}
+          {!placementsLoading && placements.length === 0 && <div className="rounded-3xl border border-dashed border-slate-300 px-6 py-14 text-center dark:border-slate-700"><p className="font-semibold text-slate-800 dark:text-slate-200">No open placements found</p><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Try another search or check again when new roles are published.</p></div>}
           <div className="grid gap-5 lg:grid-cols-2">
             {placements.map((placement) => {
               const application = applicationFor(placement._id)
@@ -185,7 +186,7 @@ function CandidateDashboard({ user, theme, onThemeToggle, onSignOut }) {
           </div>
         </>}
 
-        {tab === 'applications' && <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><h2 className="text-2xl font-bold text-slate-900 dark:text-white">Your applications</h2>{loading && <p className="py-8 text-sm text-slate-500 dark:text-slate-400">Loading applications...</p>}{!loading && applications.length === 0 && <p className="py-10 text-sm text-slate-500 dark:text-slate-400">You have not registered for a placement yet.</p>}<div className="mt-5 grid gap-4 md:grid-cols-2">{applications.map((application) => <article className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700" key={application._id}><p className="text-xs font-bold uppercase tracking-wide text-indigo-600">{application.placement?.companyName}</p><h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{application.placement?.title}</h3><p className="mt-2 text-sm capitalize text-slate-500 dark:text-slate-400">Status: {application.status.replace('_', ' ')}</p>{application.status === 'completed' && <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Score: {application.score}/{application.placement?.questionCount}</p>}<button className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700" onClick={() => startQuiz(application)}>{application.status === 'completed' ? 'View result' : application.status === 'in_progress' ? 'Resume assessment' : 'Start assessment'}</button></article>)}</div></section>}
+        {tab === 'applications' && <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8"><h2 className="text-2xl font-bold text-slate-900 dark:text-white">Your applications</h2>{applicationsLoading && <p className="py-8 text-sm text-slate-500 dark:text-slate-400">Loading applications...</p>}{!applicationsLoading && applications.length === 0 && <p className="py-10 text-sm text-slate-500 dark:text-slate-400">You have not registered for a placement yet.</p>}<div className="mt-5 grid gap-4 md:grid-cols-2">{applications.map((application) => <article className="rounded-2xl border border-slate-200 p-5 dark:border-slate-700" key={application._id}><p className="text-xs font-bold uppercase tracking-wide text-indigo-600">{application.placement?.companyName}</p><h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{application.placement?.title}</h3><p className="mt-2 text-sm capitalize text-slate-500 dark:text-slate-400">Status: {application.status.replace('_', ' ')}</p>{application.status === 'completed' && <p className="mt-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Score: {application.score}/{application.placement?.questionCount}</p>}<button className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white" onClick={() => startQuiz(application)}>{application.status === 'completed' ? 'View result' : application.status === 'in_progress' ? 'Resume assessment' : 'Start assessment'}</button></article>)}</div></section>}
 
         {quizApplication && <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/75 p-4 backdrop-blur-sm" role="presentation"><section aria-labelledby="quiz-title" aria-modal="true" className="my-6 w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 sm:p-9" role="dialog"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">Adaptive placement quiz</p><h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white" id="quiz-title">{quizApplication.placement?.title}</h2></div><button aria-label="Close assessment" className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300" onClick={closeQuiz}>Close</button></div>
           {quizLoading && <p className="py-14 text-center text-sm text-slate-500 dark:text-slate-400">Preparing your question...</p>}

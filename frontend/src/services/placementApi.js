@@ -13,6 +13,10 @@ export async function getHostPlacements() {
   return result.placements
 }
 
+export async function getPlacementApplicants(placementId, order = 'highest') {
+  return apiRequest(`/placements/${placementId}/applicants?order=${order}`)
+}
+
 export async function getCandidatePlacements({ search = '', sort = 'recent' } = {}) {
   const params = new URLSearchParams()
   if (search) params.set('search', search)

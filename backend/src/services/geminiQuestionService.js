@@ -90,17 +90,32 @@ function validateQuestions(questions, values) {
 }
 
 export function geminiFailure(cause) {
-  const code = cause.code || cause.cause?.code
-  const status = Number(cause.status)
+  const code = String(cause.code || cause.cause?.code || cause.error?.status || '').toUpperCase()
+  const status = Number(cause.status || cause.response?.status || cause.error?.code)
 
   if (status === 429) return { status: 429, message: 'Gemini rate limit reached. Wait a moment and try again.' }
+  if ([500, 502, 503, 504].includes(status) || ['INTERNAL', 'UNAVAILABLE', 'DEADLINE_EXCEEDED', 'SERVICE_UNAVAILABLE'].includes(code)) {
+    return { status: 503, message: 'Gemini could not serve this request right now. The placement was not published; try again shortly.' }
+  }
   if (status === 401 || status === 403) return { status: 502, message: 'Gemini rejected the API key or project access. Check the key and AI Studio project settings.' }
   if (status === 404) return { status: 502, message: 'Gemini model was not found. Check GEMINI_MODEL in backend/.env.' }
   if (code === 'ENOTFOUND' || code === 'ECONNRESET' || code === 'ETIMEDOUT' || cause.name === 'TypeError') {
     return { status: 502, message: 'The backend could not reach Gemini. Check the server network connection and try again.' }
   }
-  if (status === 400) return { status: 502, message: 'Gemini rejected the generation request. Check the model and question settings.' }
-  return { status: 502, message: 'Gemini could not generate a valid question set. Check the backend log for the provider error.' }
+  if (status === 400 || code === 'INVALID_ARGUMENT') return { status: 502, message: 'Gemini rejected the generation request. Check the model and question settings.' }
+  const detail = Number.isFinite(status) && status > 0 ? ` (HTTP ${status})` : code ? ` (${code})` : ''
+  return { status: 502, message: `Gemini generation failed${detail}. Check the backend log for details; the placement was not published.` }
+}
+
+function providerStatus(cause) {
+  const status = Number(cause.status || cause.response?.status || cause.error?.code)
+  return Number.isFinite(status) ? status : 0
+}
+
+function shouldFallback(cause) {
+  const status = providerStatus(cause)
+  const code = String(cause.code || cause.cause?.code || cause.error?.status || '').toUpperCase()
+  return [500, 502, 503, 504].includes(status) || ['INTERNAL', 'UNAVAILABLE', 'DEADLINE_EXCEEDED', 'SERVICE_UNAVAILABLE'].includes(code)
 }
 
 export async function generateQuestions(values, clientOverride = null) {
@@ -122,23 +137,50 @@ export async function generateQuestions(values, clientOverride = null) {
     `Selected domains: ${values.domainMode === 'random' ? 'Random from the allowed CSE domains' : values.domains.join(', ')}`,
   ].join('\n')
 
-  let response
+  const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+  const fallbackModel = primaryModel === 'gemini-3.5-flash-lite' ? 'gemini-3.8-flash' : 'gemini-3.5-flash-lite'
+  const models = [primaryModel, fallbackModel]
 
-  try {
-    response = await client.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: questionSystemInstruction(values),
-        responseMimeType: 'application/json',
-        responseJsonSchema: questionResponseSchema,
-        maxOutputTokens: Math.min(55000, Math.max(2000, values.questionCount * 3 * 240)),
-        temperature: 0.3,
-      },
-    })
-  } catch (cause) {
-    const failure = geminiFailure(cause)
-    console.error('Gemini request failed', { status: cause.status, code: cause.code || cause.cause?.code, name: cause.name })
+  let response
+  let lastCause
+
+  for (const model of models) {
+    try {
+      response = await client.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: questionSystemInstruction(values),
+          responseMimeType: 'application/json',
+          responseJsonSchema: questionResponseSchema,
+          maxOutputTokens: Math.min(55000, Math.max(2000, values.questionCount * 3 * 240)),
+          temperature: 0.3,
+        },
+      })
+      break
+    } catch (cause) {
+      lastCause = cause
+      const retryWithFallback = shouldFallback(cause) && model !== models.at(-1)
+
+      console.error('Gemini request failed', {
+        model,
+        status: cause.status,
+        code: cause.code || cause.cause?.code,
+        name: cause.name,
+        fallback: retryWithFallback ? models.at(-1) : undefined,
+      })
+
+      if (!retryWithFallback) {
+        const failure = geminiFailure(cause)
+        const error = new Error(failure.message)
+        error.status = failure.status
+        throw error
+      }
+    }
+  }
+
+  if (!response && lastCause) {
+    const failure = geminiFailure(lastCause)
     const error = new Error(failure.message)
     error.status = failure.status
     throw error
@@ -155,4 +197,4 @@ export async function generateQuestions(values, clientOverride = null) {
   }
 }
 
-export { questionResponseSchema, questionSystemInstruction, validateQuestions }
+export { questionResponseSchema, questionSystemInstruction, validateQuestions, shouldFallback }

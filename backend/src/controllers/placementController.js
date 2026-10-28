@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import mongoose from 'mongoose'
 import { placementDomains } from '../models/Placement.js'
-import { createPlacement, getPublicPlacement, listHostPlacements, listPublicPlacements, registerCandidate } from '../services/placementService.js'
+import { createPlacement, getPublicPlacement, listHostPlacements, listPlacementApplicants, listPublicPlacements, registerCandidate } from '../services/placementService.js'
 
 export const placementSchema = z.object({
   companyName: z.string().trim().min(2).max(100),
@@ -55,6 +55,16 @@ export async function createPlacementHandler(req, res) {
 export async function listHostPlacementsHandler(req, res) {
   const placements = await listHostPlacements(req.user.id)
   res.json({ placements })
+}
+
+export async function listPlacementApplicantsHandler(req, res) {
+  if (!mongoose.isValidObjectId(req.params.placementId)) {
+    return res.status(400).json({ message: 'Invalid placement id' })
+  }
+
+  const order = req.query.order === 'lowest' ? 'lowest' : 'highest'
+  const result = await listPlacementApplicants(req.user.id, req.params.placementId, order)
+  res.json(result)
 }
 
 export async function listPublicPlacementsHandler(req, res) {

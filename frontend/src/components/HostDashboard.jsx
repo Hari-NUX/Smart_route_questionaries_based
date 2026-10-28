@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import PlacementForm from './PlacementForm.jsx'
+import PlacementApplicants from './PlacementApplicants.jsx'
 import { getHostPlacements } from '../services/placementApi.js'
 
 function formatDate(value) {
@@ -10,6 +11,7 @@ function HostDashboard({ user, theme, onThemeToggle, onSignOut }) {
   const [placements, setPlacements] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [openApplicantsId, setOpenApplicantsId] = useState('')
 
   useEffect(() => {
     getHostPlacements()
@@ -21,6 +23,12 @@ function HostDashboard({ user, theme, onThemeToggle, onSignOut }) {
   function addPlacement(placement) {
     setPlacements((current) => [placement, ...current])
   }
+
+  const updateRegistrationCount = useCallback((placementId, registrationCount) => {
+    setPlacements((current) => current.map((placement) => placement._id === placementId
+      ? { ...placement, registrationCount }
+      : placement))
+  }, [])
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100 sm:px-8 sm:py-10">
@@ -40,7 +48,7 @@ function HostDashboard({ user, theme, onThemeToggle, onSignOut }) {
         <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-700 to-violet-700 p-7 text-white shadow-lg shadow-indigo-950/10 sm:p-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">Placement management</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Create your next opportunity, {user.fullName}.</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100 sm:text-base">Publish placement details and configure the adaptive CSE assessment. You can review registrations and scores in a later dashboard milestone.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100 sm:text-base">Publish placement details and configure the adaptive CSE assessment. Candidates can discover roles, register, and complete their quizzes from their workspace.</p>
           <div className="mt-6 flex flex-wrap gap-3 text-sm">
             <span className="rounded-full bg-white/15 px-4 py-2">{placements.length} {placements.length === 1 ? 'placement' : 'placements'} created</span>
             <span className="rounded-full bg-white/15 px-4 py-2">{user.email}</span>
@@ -66,13 +74,15 @@ function HostDashboard({ user, theme, onThemeToggle, onSignOut }) {
                 <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-wide text-indigo-600">{placement.companyName}</p><h3 className="mt-1 text-lg font-bold text-slate-900 dark:text-white">{placement.title}</h3></div><span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Published</span></div>
                 <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{placement.description}</p>
                 <div className="mt-4 flex flex-wrap gap-2">{(placement.domainMode === 'random' ? ['Random CSE'] : placement.domains).map((domain) => <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300" key={domain}>{domain}</span>)}</div>
-                <dl className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-slate-100 pt-4 text-xs dark:border-slate-800"><div><dt className="text-slate-500 dark:text-slate-400">Location</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{placement.location}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Capacity</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{placement.registrationCount || 0} / {placement.registrationLimit}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Opens</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{formatDate(placement.registrationOpensAt)}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Deadline</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{formatDate(placement.registrationDeadline)}</dd></div></dl>
+                <dl className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4 border-t border-slate-100 pt-4 text-xs dark:border-slate-800"><div><dt className="text-slate-500 dark:text-slate-400">Location</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{placement.location}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Candidates registered</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{placement.registrationCount || 0} / {placement.registrationLimit}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Opens</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{formatDate(placement.registrationOpensAt)}</dd></div><div><dt className="text-slate-500 dark:text-slate-400">Deadline</dt><dd className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{formatDate(placement.registrationDeadline)}</dd></div></dl>
                 <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{placement.questionCount} quiz questions · {placement.questionPoolSize || 0} generated choices · {placement.difficulty} start · {placement.randomnessPercent}% difficulty randomness</p>
+                <button aria-expanded={openApplicantsId === placement._id} className="mt-5 rounded-xl border border-indigo-200 px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950" onClick={() => setOpenApplicantsId((current) => current === placement._id ? '' : placement._id)}>{openApplicantsId === placement._id ? 'Hide candidates' : 'View candidates and scores'}</button>
+                {openApplicantsId === placement._id && <PlacementApplicants onCountChange={updateRegistrationCount} placement={placement} />}
               </article>)}
             </div>
           </section>
         </div>
-        <p className="mx-auto mt-8 max-w-4xl text-center text-xs leading-5 text-slate-500 dark:text-slate-500">Placement creation and Gemini question generation are ready. Candidate discovery, registration enforcement, and adaptive quiz delivery are upcoming components.</p>
+        <p className="mx-auto mt-8 max-w-4xl text-center text-xs leading-5 text-slate-500 dark:text-slate-500">Placement creation, Gemini question generation, candidate discovery, registration enforcement, and adaptive quiz delivery are ready.</p>
       </div>
     </main>
   )

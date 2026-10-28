@@ -1,7 +1,9 @@
+import { getAuthToken } from './authSession.js'
+
 const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 export async function apiRequest(path, options = {}) {
-  const token = options.token ?? localStorage.getItem('smartrouteToken')
+  const token = options.token ?? getAuthToken()
   const response = await fetch(`${apiBase}${path}`, {
     ...options,
     headers: {

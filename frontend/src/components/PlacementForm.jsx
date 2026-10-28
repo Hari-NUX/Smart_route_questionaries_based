@@ -17,7 +17,7 @@ function localDateTime(date) {
 
 function initialForm() {
   const now = new Date()
-  const opens = new Date(now.getTime() + 15 * 60 * 1000)
+  const opens = new Date(now.getTime() + 2 * 60 * 1000)
   const deadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   return {
@@ -116,7 +116,7 @@ function PlacementForm({ onCreated }) {
         </fieldset>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Registration opens<input className={fieldClass} name="registrationOpensAt" onChange={update} required type="datetime-local" value={form.registrationOpensAt} /></label>
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Registration opens<input className={fieldClass} name="registrationOpensAt" onChange={update} required type="datetime-local" value={form.registrationOpensAt} /><span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">Candidates can register from this time. New placements default to opening in two minutes.</span></label>
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Registration deadline<input className={fieldClass} name="registrationDeadline" onChange={update} required type="datetime-local" value={form.registrationDeadline} /></label>
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Maximum registrations<input className={fieldClass} max="1000" min="1" name="registrationLimit" onChange={update} required type="number" value={form.registrationLimit} /></label>
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Questions per candidate<input className={fieldClass} max="50" min="1" name="questionCount" onChange={update} required type="number" value={form.questionCount} /><span className="mt-1 block text-xs font-normal text-slate-500 dark:text-slate-400">Choose 1 to 50 questions. The limit keeps generation time and API usage bounded.</span></label>

@@ -2,6 +2,11 @@ import Placement from '../models/Placement.js'
 import Application from '../models/Application.js'
 import { generateQuestions } from './geminiQuestionService.js'
 
+export function buildSearchPattern(search) {
+  const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return `(^|[^a-z0-9])${escapedSearch}`
+}
+
 export async function createPlacement(hostId, values) {
   const questionBank = await generateQuestions(values)
   const placement = await Placement.create({
@@ -25,20 +30,15 @@ export async function listPublicPlacements({ search = '', domain = '', sort = 'r
   const query = {
     status: 'published',
     registrationDeadline: { $gt: now },
-    $expr: {
-      $and: [
-        { $lt: [{ $ifNull: ['$registrationCount', 0] }, '$registrationLimit'] },
-        { $gte: ['$questionPoolSize', { $multiply: ['$questionCount', 3] }] },
-      ],
-    },
+    $expr: { $gte: ['$questionPoolSize', { $multiply: ['$questionCount', 3] }] },
   }
 
   if (search) {
-    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const searchPattern = buildSearchPattern(search)
     query.$or = [
-      { companyName: { $regex: escapedSearch, $options: 'i' } },
-      { title: { $regex: escapedSearch, $options: 'i' } },
-      { description: { $regex: escapedSearch, $options: 'i' } },
+      { companyName: { $regex: searchPattern, $options: 'i' } },
+      { title: { $regex: searchPattern, $options: 'i' } },
+      { description: { $regex: searchPattern, $options: 'i' } },
     ]
   }
 
@@ -60,6 +60,36 @@ function serviceError(message, status) {
   const error = new Error(message)
   error.status = status
   return error
+}
+
+export async function listPlacementApplicants(hostId, placementId, order = 'highest') {
+  const placement = await Placement.findOne({ _id: placementId, createdBy: hostId })
+    .select('questionCount registrationLimit')
+    .lean()
+
+  if (!placement) throw serviceError('Placement not found', 404)
+
+  const sort = order === 'lowest' ? { score: 1, registeredAt: 1 } : { score: -1, registeredAt: 1 }
+  const applications = await Application.find({ placement: placementId })
+    .select('candidate status score registeredAt startedAt completedAt')
+    .populate('candidate', 'fullName email')
+    .sort(sort)
+    .lean()
+
+  return {
+    questionCount: placement.questionCount,
+    registrationLimit: placement.registrationLimit,
+    registrationCount: applications.length,
+    applicants: applications.map((application) => ({
+      id: application._id,
+      candidate: application.candidate,
+      status: application.status,
+      score: application.score,
+      registeredAt: application.registeredAt,
+      startedAt: application.startedAt,
+      completedAt: application.completedAt,
+    })),
+  }
 }
 
 export async function registerCandidate(placementId, candidateId) {

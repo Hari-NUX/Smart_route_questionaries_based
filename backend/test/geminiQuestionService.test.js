@@ -63,6 +63,63 @@ test('creates a validated question set using Gemini structured output', async ()
   assert.equal(capture.request.config.responseJsonSchema.properties.questions.type, 'array')
 })
 
+test('supports a one-question quiz by generating one question at each difficulty', async () => {
+  const oneQuestion = { ...values(), domains: ['AI'], questionCount: 1 }
+  const questionBank = [
+    generatedQuestion('AI', 'easy'),
+    generatedQuestion('AI', 'medium'),
+    generatedQuestion('AI', 'hard'),
+  ]
+  const result = await generateQuestions(oneQuestion, fakeClient(questionBank, {}))
+
+  assert.equal(result.length, 3)
+  assert.deepEqual(result.map((question) => question.difficulty), ['easy', 'medium', 'hard'])
+})
+
+test('falls back to Gemini Flash-Lite when the configured model is temporarily unavailable', async () => {
+  const modelsUsed = []
+  const client = {
+    models: {
+      async generateContent(request) {
+        modelsUsed.push(request.model)
+        if (modelsUsed.length === 1) {
+          const error = new Error('temporary provider failure')
+          error.status = 503
+          throw error
+        }
+        return { text: JSON.stringify({ questions: validQuestionBank() }) }
+      },
+    },
+  }
+
+  const result = await generateQuestions(values(), client)
+
+  assert.equal(result.length, 6)
+  assert.equal(modelsUsed.at(-1), 'gemini-3.5-flash-lite')
+})
+
+test('falls back when Gemini reports a gateway timeout', async () => {
+  const modelsUsed = []
+  const client = {
+    models: {
+      async generateContent(request) {
+        modelsUsed.push(request.model)
+        if (modelsUsed.length === 1) {
+          const error = new Error('provider gateway timeout')
+          error.status = 504
+          throw error
+        }
+        return { text: JSON.stringify({ questions: validQuestionBank() }) }
+      },
+    },
+  }
+
+  const result = await generateQuestions(values(), client)
+
+  assert.equal(result.length, 6)
+  assert.equal(modelsUsed.length, 2)
+})
+
 test('rejects a question outside the selected domains', async () => {
   const questions = validQuestionBank()
   questions[0].domain = 'Blockchain'
@@ -129,6 +186,9 @@ test('random mode instructs Gemini to distribute questions across supported doma
 test('maps Gemini access, quota, model, and network errors to useful messages', () => {
   assert.match(geminiFailure({ status: 403 }).message, /API key or project access/)
   assert.match(geminiFailure({ status: 429 }).message, /rate limit/)
+  assert.match(geminiFailure({ status: 503 }).message, /right now/)
+  assert.match(geminiFailure({ status: 504 }).message, /right now/)
+  assert.match(geminiFailure({ response: { status: 503 } }).message, /right now/)
   assert.match(geminiFailure({ status: 404 }).message, /GEMINI_MODEL/)
   assert.match(geminiFailure({ cause: { code: 'ENOTFOUND' } }).message, /network connection/)
 })

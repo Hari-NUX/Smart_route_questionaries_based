@@ -1,19 +1,20 @@
 import { apiRequest } from './apiClient.js'
+import { clearAuthToken, getAuthToken, setAuthToken } from './authSession.js'
 
 export async function signup(values) {
   const result = await apiRequest('/auth/signup', { method: 'POST', body: JSON.stringify(values) })
-  localStorage.setItem('smartrouteToken', result.token)
+  setAuthToken(result.token)
   return result.user
 }
 
 export async function login(values) {
   const result = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify(values) })
-  localStorage.setItem('smartrouteToken', result.token)
+  setAuthToken(result.token)
   return result.user
 }
 
 export async function getCurrentUser() {
-  const token = localStorage.getItem('smartrouteToken')
+  const token = getAuthToken()
 
   if (!token) return null
 
@@ -21,11 +22,11 @@ export async function getCurrentUser() {
     const result = await apiRequest('/auth/me', { token })
     return result.user
   } catch {
-    localStorage.removeItem('smartrouteToken')
+    clearAuthToken()
     return null
   }
 }
 
 export function logout() {
-  localStorage.removeItem('smartrouteToken')
+  clearAuthToken()
 }
